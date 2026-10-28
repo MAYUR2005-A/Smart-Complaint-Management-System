@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,6 +12,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 
+const API = `${import.meta.env.VITE_API_URL?.replace(/\/+$/, "")}/api/complaints`;
+
 function MyComplaints() {
   const { getToken, isSignedIn } = useAuth();
   const navigate = useNavigate();
@@ -22,54 +24,80 @@ function MyComplaints() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
+    if (!isSignedIn) {
+      setComplaints([]);
+      setError("Please sign in to view your complaints.");
+      setLoading(false);
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
 
+      if (!import.meta.env.VITE_API_URL) {
+        throw new Error(
+          "VITE_API_URL is missing. Check your Vercel environment variables."
+        );
+      }
+
       const token = await getToken();
 
       if (!token) {
-        setComplaints([]);
-        setError("Please sign in to view your complaints.");
-        return;
+        throw new Error(
+          "Authentication token not found. Please sign in again."
+        );
       }
 
-      const response = await fetch(
-        "http://localhost:5000/api/complaints",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(API, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!contentType.includes("application/json")) {
+        throw new Error(
+          "The server returned an invalid response. Check your backend URL and ensure your Render service is running."
+        );
+      }
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
-          data.message || "Unable to load complaints."
+          data.message || data.error || "Unable to load complaints."
         );
       }
 
-      setComplaints(data.complaints || []);
+      if (data.success === false) {
+        throw new Error(data.message || "Unable to load complaints.");
+      }
+
+      const complaintList = Array.isArray(data)
+        ? data
+        : Array.isArray(data.complaints)
+          ? data.complaints
+          : Array.isArray(data.data)
+            ? data.data
+            : [];
+
+      setComplaints(complaintList);
     } catch (err) {
       console.error("Fetch complaints error:", err);
       setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken, isSignedIn]);
 
   useEffect(() => {
-    if (isSignedIn) {
-      fetchComplaints();
-    } else {
-      setComplaints([]);
-      setLoading(false);
-    }
-  }, [isSignedIn]);
+    fetchComplaints();
+  }, [fetchComplaints]);
 
   const filteredComplaints = complaints.filter((complaint) => {
     const searchText = search.toLowerCase();
@@ -81,7 +109,7 @@ function MyComplaints() {
 
     const matchesStatus =
       statusFilter === "All" ||
-      complaint.status === statusFilter;
+      (complaint.status || "Pending") === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -111,7 +139,13 @@ function MyComplaints() {
   const formatDate = (date) => {
     if (!date) return "Date unavailable";
 
-    return new Date(date).toLocaleDateString("en-IN", {
+    const parsedDate = new Date(date);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      return "Date unavailable";
+    }
+
+    return parsedDate.toLocaleDateString("en-IN", {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -123,7 +157,7 @@ function MyComplaints() {
   };
 
   const pendingCount = complaints.filter(
-    (c) => c.status === "Pending"
+    (c) => (c.status || "Pending") === "Pending"
   ).length;
 
   const inProgressCount = complaints.filter(
@@ -137,7 +171,6 @@ function MyComplaints() {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="mx-auto max-w-7xl">
-
         <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
@@ -166,7 +199,7 @@ function MyComplaints() {
               <div>
                 <p className="text-sm text-gray-500">Pending</p>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {pendingCount}
+                  {loading ? "..." : pendingCount}
                 </h2>
               </div>
             </div>
@@ -180,7 +213,7 @@ function MyComplaints() {
               <div>
                 <p className="text-sm text-gray-500">In Progress</p>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {inProgressCount}
+                  {loading ? "..." : inProgressCount}
                 </h2>
               </div>
             </div>
@@ -194,7 +227,7 @@ function MyComplaints() {
               <div>
                 <p className="text-sm text-gray-500">Resolved</p>
                 <h2 className="text-2xl font-bold text-gray-900">
-                  {resolvedCount}
+                  {loading ? "..." : resolvedCount}
                 </h2>
               </div>
             </div>
@@ -240,16 +273,25 @@ function MyComplaints() {
         {error && (
           <div className="mb-5 flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
             <AlertCircle size={20} className="mt-0.5 shrink-0" />
-            <div>
+            <div className="flex-1">
               <p className="font-medium">Could not load complaints</p>
               <p className="mt-1 text-sm">{error}</p>
+              <button
+                onClick={fetchComplaints}
+                className="mt-2 text-sm font-semibold underline"
+              >
+                Try again
+              </button>
             </div>
           </div>
         )}
 
         {loading ? (
           <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
-            <RefreshCw className="mx-auto animate-spin text-blue-600" size={32} />
+            <RefreshCw
+              className="mx-auto animate-spin text-blue-600"
+              size={32}
+            />
             <p className="mt-4 text-gray-500">Loading your complaints...</p>
           </div>
         ) : filteredComplaints.length === 0 ? (
@@ -293,10 +335,10 @@ function MyComplaints() {
                         {formatComplaintId(complaint._id)}
                       </p>
                       <h3 className="mt-1 text-lg font-semibold text-gray-900">
-                        {complaint.title}
+                        {complaint.title || "Untitled complaint"}
                       </h3>
                       <p className="mt-1 text-sm text-gray-500">
-                        {complaint.category}
+                        {complaint.category || "Uncategorized"}
                         {complaint.location
                           ? ` • ${complaint.location}`
                           : ""}
