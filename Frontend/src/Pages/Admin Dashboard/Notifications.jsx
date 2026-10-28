@@ -1,3 +1,4 @@
+
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Bell,
@@ -11,28 +12,6 @@ import {
 import { useAuth } from "@clerk/react";
 
 const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
-
-const readResponse = async (response) => {
-  const text = await response.text();
-
-  let data;
-
-  try {
-    data = JSON.parse(text);
-  } catch {
-    throw new Error(
-      `Invalid server response. HTTP ${response.status}. Check the API URL or Render deployment.`
-    );
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      data.message || `Request failed with status ${response.status}.`
-    );
-  }
-
-  return data;
-};
 
 const Notifications = () => {
   const { getToken, isSignedIn } = useAuth();
@@ -55,21 +34,21 @@ const Notifications = () => {
 
       const token = await getToken();
 
-      if (!token) {
-        throw new Error("Unable to get login token. Please sign in again.");
-      }
-
       const response = await fetch(`${API}/admin/notifications`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await readResponse(response);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to load notifications.");
+      }
 
       setNotifications(data.notifications || []);
     } catch (err) {
-      setError(err.message || "Failed to load notifications.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setLoading(false);
     }
@@ -143,7 +122,11 @@ const Notifications = () => {
         },
       });
 
-      await readResponse(response);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not mark as read.");
+      }
 
       setNotifications((previous) =>
         previous.map((notification) =>
@@ -153,7 +136,7 @@ const Notifications = () => {
         )
       );
     } catch (err) {
-      setError(err.message || "Could not mark notification as read.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setActionId("");
     }
@@ -173,7 +156,11 @@ const Notifications = () => {
         },
       });
 
-      await readResponse(response);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not mark all as read.");
+      }
 
       setNotifications((previous) =>
         previous.map((notification) => ({
@@ -182,7 +169,7 @@ const Notifications = () => {
         }))
       );
     } catch (err) {
-      setError(err.message || "Could not mark all notifications as read.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setActionId("");
     }
@@ -202,13 +189,17 @@ const Notifications = () => {
         },
       });
 
-      await readResponse(response);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Could not delete notification.");
+      }
 
       setNotifications((previous) =>
         previous.filter((notification) => notification._id !== id)
       );
     } catch (err) {
-      setError(err.message || "Could not delete notification.");
+      setError(err.message || "Something went wrong.");
     } finally {
       setActionId("");
     }
@@ -269,14 +260,12 @@ const Notifications = () => {
           <div className="p-12 text-center text-slate-500">
             Loading notifications...
           </div>
-        ) : notifications.length === 0 && !error ? (
+        ) : notifications.length === 0 ? (
           <div className="p-12 text-center">
             <Bell className="mx-auto mb-3 text-slate-300" size={36} />
-
             <h3 className="font-semibold text-slate-700">
               No notifications yet
             </h3>
-
             <p className="mt-1 text-sm text-slate-500">
               New complaint activity will appear here.
             </p>
