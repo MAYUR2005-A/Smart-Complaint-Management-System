@@ -1,4 +1,3 @@
-
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Bell,
@@ -11,7 +10,29 @@ import {
 } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "fetch(`${import.meta.env.VITE_API_URL}/api/complaints/admin`)";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
+
+const readResponse = async (response) => {
+  const text = await response.text();
+
+  let data;
+
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(
+      `Invalid server response. HTTP ${response.status}. Check the API URL or Render deployment.`
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || `Request failed with status ${response.status}.`
+    );
+  }
+
+  return data;
+};
 
 const Notifications = () => {
   const { getToken, isSignedIn } = useAuth();
@@ -23,6 +44,7 @@ const Notifications = () => {
 
   const fetchNotifications = useCallback(async () => {
     if (!isSignedIn) {
+      setNotifications([]);
       setLoading(false);
       return;
     }
@@ -33,24 +55,21 @@ const Notifications = () => {
 
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/admin/notifications`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to load notifications.");
+      if (!token) {
+        throw new Error("Unable to get login token. Please sign in again.");
       }
+
+      const response = await fetch(`${API}/admin/notifications`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await readResponse(response);
 
       setNotifications(data.notifications || []);
     } catch (err) {
-      setError(err.message || "Something went wrong.");
+      setError(err.message || "Failed to load notifications.");
     } finally {
       setLoading(false);
     }
@@ -113,24 +132,18 @@ const Notifications = () => {
   const markAsRead = async (id) => {
     try {
       setActionId(id);
+      setError("");
 
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/${id}/read`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not mark as read.");
-      }
+      await readResponse(response);
 
       setNotifications((previous) =>
         previous.map((notification) =>
@@ -140,7 +153,7 @@ const Notifications = () => {
         )
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not mark notification as read.");
     } finally {
       setActionId("");
     }
@@ -149,24 +162,18 @@ const Notifications = () => {
   const markAllAsRead = async () => {
     try {
       setActionId("all");
+      setError("");
 
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/read-all`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/read-all`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not mark all as read.");
-      }
+      await readResponse(response);
 
       setNotifications((previous) =>
         previous.map((notification) => ({
@@ -175,7 +182,7 @@ const Notifications = () => {
         }))
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not mark all notifications as read.");
     } finally {
       setActionId("");
     }
@@ -184,30 +191,24 @@ const Notifications = () => {
   const deleteNotification = async (id) => {
     try {
       setActionId(id);
+      setError("");
 
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Could not delete notification.");
-      }
+      await readResponse(response);
 
       setNotifications((previous) =>
         previous.filter((notification) => notification._id !== id)
       );
     } catch (err) {
-      setError(err.message);
+      setError(err.message || "Could not delete notification.");
     } finally {
       setActionId("");
     }
@@ -268,12 +269,14 @@ const Notifications = () => {
           <div className="p-12 text-center text-slate-500">
             Loading notifications...
           </div>
-        ) : notifications.length === 0 ? (
+        ) : notifications.length === 0 && !error ? (
           <div className="p-12 text-center">
             <Bell className="mx-auto mb-3 text-slate-300" size={36} />
+
             <h3 className="font-semibold text-slate-700">
               No notifications yet
             </h3>
+
             <p className="mt-1 text-sm text-slate-500">
               New complaint activity will appear here.
             </p>
