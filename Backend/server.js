@@ -12,16 +12,31 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://deplo-smart-complaint-management-sy.vercel.app",
   "https://smartcomplaintmanagementsystem-p5w0fm92x-mayur-a198.vercel.app",
+  "https://smartcomplaintmanagementsystem-jzvukr2no-mayur-a198.vercel.app",
+  "https://smartcomplaintmanagementsystem-fh3x496z4-mayur-a198.vercel.app",
 ];
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    const isVercelPreview =
+      origin &&
+      /^https:\/\/smartcomplaintmanagementsystem-[a-z0-9]+-mayur-a198\.vercel\.app$/.test(
+        origin
+      );
 
+    if (!origin || allowedOrigins.includes(origin) || isVercelPreview) {
+      return callback(null, true);
+    }
+
+    console.log("CORS blocked origin:", origin);
+    return callback(new Error("Origin not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 app.use(
@@ -32,7 +47,7 @@ app.use(
 );
 
 app.get("/", (req, res) => {
-  res.send("Smart Complaint Backend is running!");
+  res.status(200).send("Smart Complaint Backend is running!");
 });
 
 app.use("/api/complaints", require("./routes/complaintroutes"));
