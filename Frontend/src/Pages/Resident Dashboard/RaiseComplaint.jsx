@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import {
@@ -11,7 +12,7 @@ import {
 } from "lucide-react";
 import { uploadToCloudinary } from "../../Utils/uploadToCloudinary";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
 const RaiseComplaint = () => {
@@ -27,6 +28,7 @@ const RaiseComplaint = () => {
 
   const [files, setFiles] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -66,7 +68,9 @@ const RaiseComplaint = () => {
             existing.lastModified === file.lastModified
         );
 
-        if (!duplicate) combined.push(file);
+        if (!duplicate) {
+          combined.push(file);
+        }
       }
 
       return combined;
@@ -85,13 +89,15 @@ const RaiseComplaint = () => {
     });
 
     setFiles([]);
+    setError("");
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
     if (!isSignedIn) {
-      alert("Please sign in before submitting a complaint.");
+      setError("Please sign in before submitting a complaint.");
       return;
     }
 
@@ -134,7 +140,7 @@ const RaiseComplaint = () => {
       resetForm();
     } catch (error) {
       console.error("Complaint submission error:", error);
-      alert(error.message || "Something went wrong.");
+      setError(error.message || "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -347,6 +353,13 @@ const RaiseComplaint = () => {
             </div>
           </div>
 
+          {error && (
+            <div className="mt-6 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              <AlertCircle size={18} className="mt-0.5 shrink-0" />
+              <p>{error}</p>
+            </div>
+          )}
+
           <div className="mt-8 flex flex-col-reverse justify-end gap-3 border-t border-slate-100 pt-6 sm:flex-row">
             <button
               type="button"
@@ -359,7 +372,7 @@ const RaiseComplaint = () => {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !isSignedIn}
               className="flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Send size={17} />

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   ArrowUpRight,
   Bell,
@@ -7,13 +7,12 @@ import {
   Clock3,
   FileText,
   Info,
-  Users,
   RefreshCw,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -23,7 +22,13 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
+    if (!isSignedIn) {
+      setComplaints([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       setError("");
       setLoading(true);
@@ -48,15 +53,11 @@ const Dashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken, isSignedIn]);
 
   useEffect(() => {
-    if (isSignedIn) {
-      fetchComplaints();
-    } else {
-      setLoading(false);
-    }
-  }, [isSignedIn]);
+    fetchComplaints();
+  }, [fetchComplaints]);
 
   const total = complaints.length;
 
@@ -158,11 +159,15 @@ const Dashboard = () => {
         </div>
 
         <button
+          type="button"
           onClick={fetchComplaints}
           disabled={loading}
           className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
         >
-          <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
+          <RefreshCw
+            size={16}
+            className={loading ? "animate-spin" : ""}
+          />
           Refresh
         </button>
       </div>
@@ -171,6 +176,7 @@ const Dashboard = () => {
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p>{error}</p>
           <button
+            type="button"
             onClick={fetchComplaints}
             className="mt-2 font-semibold underline"
           >
@@ -260,6 +266,7 @@ const Dashboard = () => {
 
           <div className="space-y-4">
             <button
+              type="button"
               onClick={() => navigate("/admin/complaints")}
               className="flex w-full items-center justify-center gap-3 rounded-lg bg-blue-600 py-3 text-white hover:bg-blue-700"
             >
@@ -268,6 +275,7 @@ const Dashboard = () => {
             </button>
 
             <button
+              type="button"
               onClick={() => navigate("/admin/notifications")}
               className="flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 py-3 text-slate-700 hover:bg-slate-50"
             >
@@ -296,6 +304,7 @@ const Dashboard = () => {
             </h2>
 
             <button
+              type="button"
               onClick={() => navigate("/admin/complaints")}
               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
             >
@@ -318,13 +327,19 @@ const Dashboard = () => {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan="5" className="py-10 text-center text-slate-400">
+                    <td
+                      colSpan={5}
+                      className="py-10 text-center text-slate-400"
+                    >
                       Loading complaints...
                     </td>
                   </tr>
                 ) : recentComplaints.length === 0 ? (
                   <tr>
-                    <td colSpan="5" className="py-10 text-center text-slate-400">
+                    <td
+                      colSpan={5}
+                      className="py-10 text-center text-slate-400"
+                    >
                       No complaints found.
                     </td>
                   </tr>
@@ -374,6 +389,7 @@ const Dashboard = () => {
             </h2>
 
             <button
+              type="button"
               onClick={() => navigate("/admin/notifications")}
               className="whitespace-nowrap text-sm text-blue-600 hover:text-blue-800"
             >

@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from "react";
-import { Search, RefreshCw, X, Image as ImageIcon, Eye } from "lucide-react";
+import React, { useEffect, useState, useCallback } from "react";
+import { Search, RefreshCw, X, Eye } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 
 const Complaints = () => {
   const { getToken } = useAuth();
@@ -17,7 +17,7 @@ const Complaints = () => {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
@@ -42,11 +42,11 @@ const Complaints = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getToken]);
 
   useEffect(() => {
     fetchComplaints();
-  }, []);
+  }, [fetchComplaints]);
 
   const updateStatus = async (id, status) => {
     try {
@@ -89,7 +89,9 @@ const Complaints = () => {
       complaint.residentName,
       complaint.description,
       complaint.complaintCode,
-    ].some((value) => String(value || "").toLowerCase().includes(searchText));
+    ].some((value) =>
+      String(value || "").toLowerCase().includes(searchText)
+    );
 
     const matchesStatus =
       filter === "All Status" || complaint.status === filter;
@@ -132,19 +134,21 @@ const Complaints = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Complaints</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Complaints
+        </h1>
         <p className="mt-2 text-gray-500">
           Manage and track all complaints submitted by residents.
         </p>
       </div>
 
-      {/* Search and filter */}
       <div className="mb-6 flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full sm:max-w-md">
           <Search
             size={19}
             className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
           />
+
           <input
             type="text"
             value={search}
@@ -172,7 +176,10 @@ const Complaints = () => {
             disabled={loading}
             className="flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-3 text-gray-700 transition hover:bg-gray-100 disabled:opacity-50"
           >
-            <RefreshCw size={17} className={loading ? "animate-spin" : ""} />
+            <RefreshCw
+              size={17}
+              className={loading ? "animate-spin" : ""}
+            />
             Refresh
           </button>
         </div>
@@ -181,16 +188,21 @@ const Complaints = () => {
       {error && (
         <div className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <span>{error}</span>
-          <button type="button" onClick={() => setError("")}>
+          <button
+            type="button"
+            onClick={() => setError("")}
+            aria-label="Dismiss error"
+          >
             <X size={18} />
           </button>
         </div>
       )}
 
-      {/* Complaints table */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
-          <h2 className="font-semibold text-gray-900">All Complaints</h2>
+          <h2 className="font-semibold text-gray-900">
+            All Complaints
+          </h2>
           <span className="text-sm text-gray-500">
             {filteredComplaints.length} complaints
           </span>
@@ -227,7 +239,10 @@ const Complaints = () => {
                     : [];
 
                   return (
-                    <tr key={complaint._id} className="hover:bg-gray-50">
+                    <tr
+                      key={complaint._id}
+                      className="hover:bg-gray-50"
+                    >
                       <td className="whitespace-nowrap px-5 py-5 text-sm font-medium text-gray-700">
                         {getComplaintCode(complaint)}
                       </td>
@@ -288,14 +303,18 @@ const Complaints = () => {
                           value={complaint.status}
                           disabled={updatingId === complaint._id}
                           onChange={(event) =>
-                            updateStatus(complaint._id, event.target.value)
+                            updateStatus(
+                              complaint._id,
+                              event.target.value
+                            )
                           }
-                          className="rounded-lg cursor-pointer border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:opacity-50"
+                          className="cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:opacity-50"
                         >
                           <option>Pending</option>
                           <option>In Progress</option>
                           <option>Resolved</option>
                         </select>
+
                         {updatingId === complaint._id && (
                           <span className="ml-2 text-xs text-gray-400">
                             Updating...
@@ -311,85 +330,80 @@ const Complaints = () => {
         )}
       </div>
 
-      {/* Complaint images modal */}
- {/* Complaint Image Gallery Modal */}
-{selectedComplaint && (
-  <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-    onClick={closeGallery}
-  >
-    <div
-      className="relative flex flex-col justify-center items-center max-h-[90vh] w-[20%] max-w-5xl flex-col overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 mr-10">
-            Complaint Images
-          </h2>
-          <p className="mt-1 text-sm text-gray-500">
-            {selectedComplaint.title}
-          </p>
-        </div>
-
-        <button
-          type="button"
+      {selectedComplaint && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
           onClick={closeGallery}
-          className="rounded-lg cursor-pointer px-3 py-2 text-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900"
-         >
-          &times;
-        </button>
-      </div>
-
-      {/* Image Cards — centered */}
-      <div className="flex w-full flex-wrap items-center justify-center gap-6">
-        {(selectedComplaint.imageUrls || []).map((url, index) => (
+        >
           <div
-            key={`${url}-${index}`}
-            className="flex w-60 shrink-0 flex-col items-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm"
+            className="relative flex max-h-[90vh] w-full max-w-5xl flex-col overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
           >
-            <button
-              type="button"
-              className="flex w-full items-center justify-center bg-gray-100"
-              onClick={() => setSelectedImage(url)}
-            >
-              <img
-                src={url}
-                alt={`Complaint ${index + 1}`}
-                className="h-48 w-full object-contain cursor-pointer"
-              />
-            </button>
-
-            <div className="w-full border-t border-gray-200 px-3 py-3 text-center">
-              <p className="text-sm font-medium text-gray-700">
-                Image {index + 1}
-              </p>
+            <div className="mb-6 flex items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">
+                  Complaint Images
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                  {selectedComplaint.title}
+                </p>
+              </div>
 
               <button
                 type="button"
-                onClick={() => setSelectedImage(url)}
-                className="mt-2 cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-800"
+                onClick={closeGallery}
+                className="cursor-pointer rounded-lg px-3 py-2 text-xl text-gray-500 hover:bg-gray-100 hover:text-gray-900"
+                aria-label="Close image gallery"
               >
-                View Full Image
+                <X size={22} />
               </button>
             </div>
-          </div>
-        ))}
-      </div>
 
-      {/* No images */}
-      {(!selectedComplaint.imageUrls ||
-        selectedComplaint.imageUrls.length === 0) && (
-        <div className="flex min-h-40 w-full items-center justify-center text-center text-gray-500">
-          No images attached to this complaint.
+            <div className="flex w-full flex-wrap items-center justify-center gap-6">
+              {(selectedComplaint.imageUrls || []).map((url, index) => (
+                <div
+                  key={`${url}-${index}`}
+                  className="flex w-60 shrink-0 flex-col items-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50 shadow-sm"
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-center bg-gray-100"
+                    onClick={() => setSelectedImage(url)}
+                  >
+                    <img
+                      src={url}
+                      alt={`Complaint ${index + 1}`}
+                      className="h-48 w-full cursor-pointer object-contain"
+                    />
+                  </button>
+
+                  <div className="w-full border-t border-gray-200 px-3 py-3 text-center">
+                    <p className="text-sm font-medium text-gray-700">
+                      Image {index + 1}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedImage(url)}
+                      className="mt-2 cursor-pointer text-sm font-semibold text-blue-600 hover:text-blue-800"
+                    >
+                      View Full Image
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {(!selectedComplaint.imageUrls ||
+              selectedComplaint.imageUrls.length === 0) && (
+              <div className="flex min-h-40 w-full items-center justify-center text-center text-gray-500">
+                No images attached to this complaint.
+              </div>
+            )}
+          </div>
         </div>
       )}
-    </div>
-  </div>
-)}
 
-      {/* Full-size image overlay */}
       {selectedImage && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 p-4"
@@ -400,9 +414,8 @@ const Complaints = () => {
             onClick={() => setSelectedImage(null)}
             className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white transition hover:bg-white/20"
             aria-label="Close full image"
-            
           >
-            <X size={28} className='cursor-pointer' />
+            <X size={28} />
           </button>
 
           <img

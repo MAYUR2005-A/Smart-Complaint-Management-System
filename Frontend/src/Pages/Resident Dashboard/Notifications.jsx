@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Bell, CheckCircle, Clock, RefreshCw } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 
 const Notifications = () => {
   const { getToken, isSignedIn } = useAuth();
@@ -23,6 +24,10 @@ const Notifications = () => {
       setError("");
 
       const token = await getToken();
+
+      if (!token) {
+        throw new Error("Authentication token not found. Please sign in again.");
+      }
 
       const response = await fetch(`${API}/notifications`, {
         headers: {
@@ -49,10 +54,12 @@ const Notifications = () => {
   useEffect(() => {
     fetchNotifications();
 
+    if (!isSignedIn) return;
+
     const interval = setInterval(fetchNotifications, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, isSignedIn]);
 
   const markAsRead = async (id) => {
     try {
@@ -60,6 +67,10 @@ const Notifications = () => {
       setError("");
 
       const token = await getToken();
+
+      if (!token) {
+        throw new Error("Authentication token not found.");
+      }
 
       const response = await fetch(
         `${API}/resident/notifications/${id}/read`,
@@ -126,7 +137,7 @@ const Notifications = () => {
       )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-5">
-        <div className="mb-5 flex items-center gap-3">
+        <div className="mb-5 flex flex-wrap items-center gap-3">
           <Bell className="text-blue-600" size={22} />
 
           <h2 className="text-lg font-bold text-slate-900">
@@ -167,8 +178,7 @@ const Notifications = () => {
         ) : (
           <div className="divide-y divide-slate-100">
             {notifications.map((notification) => {
-              const registered =
-                notification.type === "registered";
+              const registered = notification.type === "registered";
 
               return (
                 <div
@@ -198,17 +208,13 @@ const Notifications = () => {
 
                     <p className="mt-1 text-sm text-slate-500">
                       {notification.createdAt
-                        ? new Date(
-                            notification.createdAt
-                          ).toLocaleString()
+                        ? new Date(notification.createdAt).toLocaleString()
                         : ""}
                     </p>
 
                     {!notification.read && (
                       <button
-                        onClick={() =>
-                          markAsRead(notification._id)
-                        }
+                        onClick={() => markAsRead(notification._id)}
                         disabled={readingId === notification._id}
                         className="mt-2 text-sm font-medium text-blue-600 hover:text-blue-800 disabled:opacity-50"
                       >

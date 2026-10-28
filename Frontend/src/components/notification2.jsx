@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { Bell, Check, X, CheckCheck } from "lucide-react";
+import { Bell, Check, CheckCheck } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 
 const NotificationBell = () => {
   const { getToken, isSignedIn } = useAuth();
@@ -20,8 +20,9 @@ const NotificationBell = () => {
       const response = await fetch(`${API}${endpoint}`, {
         ...options,
         headers: {
-          Authorization: `Bearer ${token}`,
           ...options.headers,
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
       });
 
@@ -29,10 +30,10 @@ const NotificationBell = () => {
       let data;
 
       try {
-        data = JSON.parse(text);
+        data = text ? JSON.parse(text) : {};
       } catch {
         throw new Error(
-          `Server returned a non-JSON response (${response.status}). Check the backend route.`
+          `Server returned an invalid response (${response.status}).`
         );
       }
 
@@ -57,7 +58,6 @@ const NotificationBell = () => {
       setLoading(true);
       setError("");
 
-      // Same endpoint as the resident Notifications.jsx page
       const data = await apiRequest("/notifications");
 
       setNotifications(data.notifications || []);
@@ -129,12 +129,6 @@ const NotificationBell = () => {
       setError(err.message || "Failed to mark notifications as read.");
       fetchNotifications();
     }
-  };
-
-  const deleteNotification = async (id) => {
-    // This component uses the resident API. No resident delete
-    // endpoint has been established in the supplied backend routes.
-    setError("Deleting notifications requires a resident delete API route.");
   };
 
   if (!isSignedIn) return null;

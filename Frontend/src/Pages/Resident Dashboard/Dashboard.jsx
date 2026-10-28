@@ -38,7 +38,7 @@ const Dashboard = () => {
         }
 
         const response = await fetch(
-          "http://localhost:5000/api/complaints",
+          "fetch(`${import.meta.env.VITE_API_URL}/api/complaints/admin`)",
           {
             headers: {
               Authorization: `Bearer ${token}`,

@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = "fetch(`${import.meta.env.VITE_API_URL}/api/complaints/admin`)";
 
 const Notifications = () => {
   const { getToken, isSignedIn } = useAuth();

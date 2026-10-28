@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Bell, X, Check } from "lucide-react";
 import { useAuth } from "@clerk/react";
 
-const API = "http://localhost:5000/api/complaints";
+const API = `${import.meta.env.VITE_API_URL}/api/complaints`;
 
 const NotificationBell = () => {
   const { getToken, isSignedIn } = useAuth();
@@ -11,7 +12,10 @@ const NotificationBell = () => {
   const [notifications, setNotifications] = useState([]);
 
   const fetchNotifications = useCallback(async () => {
-    if (!isSignedIn) return;
+    if (!isSignedIn) {
+      setNotifications([]);
+      return;
+    }
 
     try {
       const token = await getToken();
@@ -23,23 +27,25 @@ const NotificationBell = () => {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch notifications");
+        throw new Error(`Failed to fetch notifications (${response.status})`);
       }
 
       const data = await response.json();
       setNotifications(data.notifications || []);
     } catch (error) {
-      console.error(error);
+      console.error("Notification error:", error);
     }
   }, [getToken, isSignedIn]);
 
   useEffect(() => {
+    if (!isSignedIn) return;
+
     fetchNotifications();
 
     const interval = setInterval(fetchNotifications, 5000);
 
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, isSignedIn]);
 
   const unreadCount = notifications.filter(
     (notification) => !notification.read
@@ -49,15 +55,12 @@ const NotificationBell = () => {
     try {
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/${id}/read`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/${id}/read`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to mark notification as read");
@@ -71,7 +74,7 @@ const NotificationBell = () => {
         )
       );
     } catch (error) {
-      console.error(error);
+      console.error("Mark as read error:", error);
     }
   };
 
@@ -79,15 +82,12 @@ const NotificationBell = () => {
     try {
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/read-all`,
-        {
-          method: "PATCH",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/read-all`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to mark all notifications as read");
@@ -100,7 +100,7 @@ const NotificationBell = () => {
         }))
       );
     } catch (error) {
-      console.error(error);
+      console.error("Mark all as read error:", error);
     }
   };
 
@@ -108,15 +108,12 @@ const NotificationBell = () => {
     try {
       const token = await getToken();
 
-      const response = await fetch(
-        `${API}/notifications/${id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API}/notifications/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       if (!response.ok) {
         throw new Error("Failed to delete notification");
@@ -126,7 +123,7 @@ const NotificationBell = () => {
         previous.filter((notification) => notification._id !== id)
       );
     } catch (error) {
-      console.error(error);
+      console.error("Delete notification error:", error);
     }
   };
 
@@ -144,11 +141,16 @@ const NotificationBell = () => {
     if (minutes < 60) return `${minutes} min ago`;
 
     const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+
+    if (hours < 24) {
+      return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+    }
 
     const days = Math.floor(hours / 24);
     return `${days} day${days === 1 ? "" : "s"} ago`;
   };
+
+  if (!isSignedIn) return null;
 
   return (
     <div className="relative">
@@ -181,6 +183,7 @@ const NotificationBell = () => {
             <button
               onClick={() => setOpen(false)}
               className="p-1 hover:bg-gray-100 rounded-full"
+              aria-label="Close notifications"
             >
               <X size={18} />
             </button>
