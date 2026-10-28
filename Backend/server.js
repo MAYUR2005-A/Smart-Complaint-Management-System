@@ -8,9 +8,17 @@ const { clerkMiddleware } = require("@clerk/express");
 
 const app = express();
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://deplo-smart-complaint-management-sy.vercel.app",
+  "https://smartcomplaintmanagementsystem-p5w0fm92x-mayur-a198.vercel.app",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -40,7 +48,8 @@ async function startServer() {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (error) {
-    console.error("MongoDB connection failed:", error.message);
+    console.error("Server startup failed:", error.message);
+    process.exit(1);
   }
 }
 
